@@ -1,0 +1,25 @@
+{
+  "name": "digivault-server",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/jdcodebase/digiVault-server#readme",
+  "bugs": {
+    "url": "https://github.com/jdcodebase/digiVault-server/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jdcodebase/digiVault-server.git"
+  },
+  "license": "ISC",
+  "author": "jdcodebase",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "winston": "^3.19.0",
+    "zod": "^4.4.3"
+  }
+}
