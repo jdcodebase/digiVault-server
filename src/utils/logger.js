@@ -50,3 +50,5 @@ const logger = winston.createLogger({
         new winston.transports.File({ filename: 'logs/rejections.log' })
     ]
 })
+
+export default logger;
