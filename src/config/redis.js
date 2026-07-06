@@ -1,11 +1,11 @@
 import Redis from "ioredis";
 import env from "./env.js";
-import logger from "../utils/logger.js";
+import logger from "./logger.js";
 
 const redisClient = new Redis(env.REDIS_URL, {
     maxRetriesPerRequest: 3,
     enableReadyCheck: true,
-    lazyConnect: false,
+    lazyConnect: true,
 
     retryStrategy(times) {
         return Math.min(times * 100, 2000);

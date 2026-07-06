@@ -1,41 +1,51 @@
-import mongoose from 'mongoose';
-import env from "./env.js"
-import logger from "../utils/logger.js";
+import mongoose from "mongoose";
+import env from "./env.js";
+import logger from "./logger.js";
+
+export let isShuttingDown = false;
+
+export const setShutdownState = (value) => {
+    isShuttingDown = value;
+};
 
 const connectDB = async () => {
-    try{
-        mongoose.set('strictQuery', true);
+    try {
+        mongoose.set("strictQuery", true);
 
         const conn = await mongoose.connect(env.MONGODB_URI, {
-            autoIndex: env.NODE_ENV === 'development',
+            autoIndex: env.NODE_ENV === "development",
             serverSelectionTimeoutMS: 5000,
             maxPoolSize: 10,
             minPoolSize: 5,
-        })
+        });
 
         logger.info("MongoDB connected successfully");
         logger.info(`Database: ${conn.connection.name}`);
         logger.info(`Host: ${conn.connection.host}`);
-    }catch(err){
-        logger.error("Error connecting to MongoDB:");
-        logger.error(err.message);
+    } catch (error) {
+        logger.error("Error connecting to MongoDB", {
+            message: error.message,
+            stack: error.stack,
+        });
+
         process.exit(1);
     }
-}
+};
 
+mongoose.connection.on("error", (error) => {
+    logger.error("MongoDB connection error", {
+        message: error.message,
+    });
+});
 
-mongoose.connection.on("error",(error)=>{
-    logger.error("MongoDB connection error:");
-    logger.error(error.message);
-})
+mongoose.connection.on("disconnected", () => {
+    if (isShuttingDown) return;
 
-mongoose.connection.on("disconnected",()=>{
-    logger.warn("MongoDB disconnected. Attempting to reconnect...");
-})
+    logger.warn("MongoDB connection lost.");
+});
 
-mongoose.connection.on("reconnected",()=>{
+mongoose.connection.on("reconnected", () => {
     logger.info("MongoDB reconnected successfully.");
-})  
-
+});
 
 export default connectDB;

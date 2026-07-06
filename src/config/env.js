@@ -7,7 +7,9 @@ const envSchema = z.object({
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
     MONGODB_URI: z.string().url("MONGODB_URI must be a valid MongoDB connection string").default('mongodb://localhost:27017/digiVault'),
     REDIS_URL: z.string().url("REDIS_URL must be a valid Redis connection string").default('redis://localhost:6379'),
-  })
+    CLIENT_URL: z.string().url("CLIENT_URL must be a valid URL").default('http://localhost:5173'),
+    PORT: z.string().regex(/^\d+$/).transform(Number).default(5000)
+})
 
 const result = envSchema.safeParse(process.env)
 

@@ -1,5 +1,5 @@
 import winston from 'winston';
-import env from '../config/env.js';
+import env from './env.js';
 
 const isDevelopment = env.NODE_ENV === 'development';
 

@@ -3,7 +3,7 @@ import env from '../config/env.js';
 import logger from '../config/logger.js';
 
 const errorMiddleware = (err, req, res, next) => {
-    let error = { ...err };
+    let error = err;
 
     if(!(err instanceof ApiError)) {
         let message = err.message || 'Internal Server Error';
@@ -26,7 +26,12 @@ const errorMiddleware = (err, req, res, next) => {
             statusCode = 401;
         }
 
-        error = new ApiError(message, statusCode, err.stack);
+        error = new ApiError(
+            statusCode,
+            message,
+            [],
+            err.stack
+        );
         error.isOperational = false;
     }
 
@@ -38,13 +43,21 @@ const errorMiddleware = (err, req, res, next) => {
         logger.warn(`${req.method} ${req.originalUrl} ${error.statusCode} - ${error.message}`);
     }
 
-    const response = error.toJSON() 
-        ? error.toJSON()
-        : {
-            status: error.status,
+    let response;
+
+    if (typeof error.toJSON === "function") {
+        response = error.toJSON();
+    } else {
+        response = {
+            statusCode: error.statusCode,
+            success: false,
             message: error.message,
-            stack: env.NODE_ENV === 'development' ? error.stack : undefined,
-        };
+            stack:
+                env.NODE_ENV === "development"
+                    ? error.stack
+                    : undefined,
+    };
+    }
 
     return res.status(error.statusCode).json(response);
 }
