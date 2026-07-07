@@ -67,8 +67,21 @@ export const sendVerificationEmail = async (name, email, otp) => {
     const html = `
         <h2>Email Verification</h2>
         <p>Hi ${name},</p>
-        <p>Your OTP is:</p>
-        <h1>${otp}</h1>
+        <div style="
+            font-size:32px;
+            font-weight:bold;
+            letter-spacing:8px;
+            text-align:center;
+            background:#f5f5f5;
+            padding:16px;
+            border-radius:8px;
+        ">
+            362004
+        </div>
+
+        <p>This OTP will expire in <strong>10 minutes</strong>.</p>
+
+        <p>If you didn't request this verification, you can safely ignore this email.</p>
     `;
 
     await sendEmail(email, subject, html);

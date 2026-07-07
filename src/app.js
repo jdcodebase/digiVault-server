@@ -11,6 +11,7 @@ import env from './config/env.js';
 import logger from './config/logger.js';
 import notFoundMiddleware from './middlewares/notFound.middleware.js';
 import errorMiddleware from './middlewares/error.middleware.js';
+import routes from "./routes/index.js";
 
 const app = express()
 
@@ -60,7 +61,7 @@ const globalLimiter = rateLimit({
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-app.use('/api/v1', globalLimiter);
+app.use('/api/v1', globalLimiter, routes);
 
 app.use(notFoundMiddleware);
 
