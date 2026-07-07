@@ -5,6 +5,7 @@ import connectDB, { setShutdownState } from "./config/db.js";
 import redisClient from "./config/redis.js";
 
 import mongoose from "mongoose";
+import { verifyTransporter } from "./services/email.service.js";
 
 const PORT = env.PORT || 8000;
 
@@ -18,6 +19,8 @@ const startServer = async () => {
     if (redisClient.status !== "ready") {
       await redisClient.connect();
     }
+
+    await verifyTransporter();
 
     httpServer = app.listen(PORT, () => {
       logger.info("Welcome to DigiVault Server!");
