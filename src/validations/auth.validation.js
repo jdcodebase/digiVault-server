@@ -21,3 +21,18 @@ export const sendEmailVerificationOtpSchema = z.object({
 
   query: z.object({}),
 });
+
+export const verifyEmailOtpSchema = z.object({
+  body: z.object({
+    email: z
+      .string()
+      .trim()
+      .email("Please enter a valid email address."),
+
+    otp: z
+      .string()
+      .trim()
+      .length(6, "OTP must be exactly 6 digits.")
+      .regex(/^\d{6}$/, "OTP must contain only digits."),
+  }),
+});

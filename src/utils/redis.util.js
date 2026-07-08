@@ -8,6 +8,10 @@ export const getRedis = async (key) => {
   return await redisClient.get(key);
 };
 
+export const getRedisTTL = async (key) => {
+  return await redisClient.ttl(key);
+};
+
 export const deleteRedis = async (key) => {
   await redisClient.del(key);
 };

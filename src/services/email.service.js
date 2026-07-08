@@ -76,7 +76,7 @@ export const sendVerificationEmail = async (name, email, otp) => {
             padding:16px;
             border-radius:8px;
         ">
-            362004
+            ${otp}
         </div>
 
         <p>This OTP will expire in <strong>10 minutes</strong>.</p>
