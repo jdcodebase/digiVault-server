@@ -4,10 +4,10 @@ import env from "../config/env.js"
 import { sendEmailVerificationOtpService, verifyEmailOtpService } from "../services/auth.service.js";
 
 export const sendEmailVerificationOtp = asyncHandler(async (req, res) => {
-  const { fullName, email } = req.body;
+  const { name, email } = req.body;
 
   const result = await sendEmailVerificationOtpService({
-    fullName,
+    name,
     email,
   });
 
@@ -37,4 +37,24 @@ export const verifyEmailOtp = asyncHandler(async (req, res) => {
       result.data
     )
   );
+});
+
+export const registerController = asyncHandler(async (req, res) => {
+    const result = await registerService({
+        body: req.body,
+        registrationToken: req.cookies.registrationToken,
+    });
+
+    res
+        .status(201)
+        .cookie("accessToken", result.accessToken, accessCookieOptions)
+        .cookie("refreshToken", result.refreshToken, refreshCookieOptions)
+        .clearCookie("registrationToken")
+        .json(
+            new ApiResponse(
+                201,
+                "Registration completed successfully.",
+                result.user
+            )
+        );
 });

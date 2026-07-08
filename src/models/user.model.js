@@ -3,7 +3,7 @@ import argon2 from "argon2";
 
 const userSchema = new mongoose.Schema(
   {
-    fullName: {
+    name: {
       type: String,
       required: true,
       trim: true,
@@ -49,19 +49,25 @@ const userSchema = new mongoose.Schema(
     },
 
     loginAttempts: {
-        type: Number,
-        default: 0,
+      type: Number,
+      default: 0,
     },
 
     lockUntil: {
-        type: Date,
-        default: null,
+      type: Date,
+      default: null,
     },
 
     passwordChangedAt: {
-        type: Date,
-        default: null,
+      type: Date,
+      default: null,
     },
+
+    refreshToken: {
+      type: String,
+      select: false,
+      default: null,
+    }
   },
   {
     timestamps: true,

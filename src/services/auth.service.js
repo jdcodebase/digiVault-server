@@ -1,13 +1,14 @@
 import { EMAIL_VERIFICATION_PREFIX, EMAIL_VERIFICATION_TTL, MAX_OTP_ATTEMPTS } from "../constants/auth.constants.js";
 import User from "../models/user.model.js";
 import ApiError from "../utils/apiError.js";
+import { hashRefreshToken } from "../utils/hash.js";
 import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.util.js";
-import { getRedis, getRedisTTL, setRedis } from "../utils/redis.util.js";
-import { generateRegistrationToken } from "../utils/registrationToken.js";
+import { deleteRedis, getRedis, getRedisTTL, setRedis } from "../utils/redis.util.js";
+import { generateAccessToken, generateRefreshToken, generateRegistrationToken, verifyRegistrationToken } from "../utils/token.util.js";
 import { sendVerificationEmail } from "./email.service.js";
 
 export const sendEmailVerificationOtpService = async ({
-  fullName,
+  name,
   email,
 }) => {
   // Check if email is already registered
@@ -26,7 +27,7 @@ export const sendEmailVerificationOtpService = async ({
 
   // Store verification data in Redis
   const verificationData = {
-    name: fullName,
+    name,
     email,
     hashedOtp,
     isVerified: false,
@@ -127,5 +128,67 @@ export const verifyEmailOtpService = async ({
         data: {
             name: data.name,
         },
+    };
+};
+
+export const registerService = async ({
+    registrationToken,
+    phoneNumber,
+    dateOfBirth,
+    password,
+}) => {
+
+    if (!registrationToken) {
+        throw new ApiError(401, "Registration session expired.");
+    }
+
+    const payload = verifyRegistrationToken(registrationToken);
+
+    const email = payload.email;
+
+    const redisKey = `${EMAIL_VERIFICATION_PREFIX}:${email}`;
+
+    const verificationData = await getRedis(redisKey);
+
+    if (!verificationData) {
+        throw new ApiError(404, "Verification session not found.");
+    }
+
+    const data = JSON.parse(verificationData);
+
+    if (!data.isVerified) {
+        throw new ApiError(403, "Email is not verified.");
+    }
+
+    const existingUser = await User.findOne({
+        email: data.email,
+    });
+
+    if (existingUser) {
+        throw new ApiError(409, "User already exists.");
+    }
+
+    const user = new User({
+        name: data.name,
+        email: data.email,
+        phoneNumber,
+        dateOfBirth,
+        password, // Let mongoose pre-save hook hash it
+    });
+
+    const accessToken = generateAccessToken(user._id);
+
+    const refreshToken = generateRefreshToken(user._id);
+
+    user.refreshToken = await hashRefreshToken(refreshToken);
+
+    await user.save();
+
+    await deleteRedis(redisKey);
+
+    return {
+        user,
+        accessToken,
+        refreshToken,
     };
 };
