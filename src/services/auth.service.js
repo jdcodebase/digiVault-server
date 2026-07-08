@@ -3,6 +3,7 @@ import User from "../models/user.model.js";
 import ApiError from "../utils/apiError.js";
 import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.util.js";
 import { getRedis, getRedisTTL, setRedis } from "../utils/redis.util.js";
+import { generateRegistrationToken } from "../utils/registrationToken.js";
 import { sendVerificationEmail } from "./email.service.js";
 
 export const sendEmailVerificationOtpService = async ({
@@ -109,20 +110,22 @@ export const verifyEmailOtpService = async ({
     data.isVerified = true;
     data.verifiedAt = new Date().toISOString();
 
-    const remainingTTL = await getRedisTTL(redisKey);
-
     await setRedis(
         redisKey,
         JSON.stringify(data),
-        remainingTTL
+        EMAIL_VERIFICATION_TTL
     );
+
+    const registrationToken = generateRegistrationToken({
+        email: data.email,
+        type: "registration",
+    });
 
     return {
         message: "Email verified successfully.",
+        registrationToken,
         data: {
             name: data.name,
-            email: data.email,
-            isVerified: true,
         },
     };
 };

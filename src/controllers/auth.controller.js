@@ -1,5 +1,6 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/apiResponse.js";
+import env from "../config/env.js"
 import { sendEmailVerificationOtpService, verifyEmailOtpService } from "../services/auth.service.js";
 
 export const sendEmailVerificationOtp = asyncHandler(async (req, res) => {
@@ -21,6 +22,13 @@ export const sendEmailVerificationOtp = asyncHandler(async (req, res) => {
 
 export const verifyEmailOtp = asyncHandler(async (req, res) => {
   const result = await verifyEmailOtpService(req.body);
+
+  res.cookie("registrationToken", result.registrationToken, {
+    httpOnly: true,
+    secure: env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 10 * 60 * 1000, 
+  });
 
   return res.status(200).json(
     new ApiResponse(

@@ -5,10 +5,15 @@ dotenv.config()
 
 const envSchema = z.object({
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+
     MONGODB_URI: z.string().url("MONGODB_URI must be a valid MongoDB connection string").default('mongodb://localhost:27017/digiVault'),
+    
     REDIS_URL: z.string().url("REDIS_URL must be a valid Redis connection string").default('redis://localhost:6379'),
+    
     CLIENT_URL: z.string().url("CLIENT_URL must be a valid URL").default('http://localhost:5173'),
+    
     PORT: z.string().regex(/^\d+$/).transform(Number).default(5000),
+    
     SMTP_HOST: z.string().default('localhost'),
     SMTP_PORT: z.string().regex(/^\d+$/).transform(Number).default(587),
     SMTP_SECURE: z.preprocess(
@@ -20,8 +25,22 @@ const envSchema = z.object({
     ).default(false),
     SMTP_USER: z.string().email().default(''),
     SMTP_PASS: z.string().default(''),
+    
     MAIL_FROM_NAME: z.string().default('DigitalVault'),
     MAIL_FROM_EMAIL: z.string().email().default(''),
+    
+    REGISTRATION_TOKEN_SECRET: z
+    .string()
+    .min(
+      64,
+      "REGISTRATION_TOKEN_SECRET must be at least 64 characters long"
+    ),
+    ACCESS_TOKEN_SECRET: z
+      .string()
+      .min(64, "ACCESS_TOKEN_SECRET must be at least 64 characters long"),
+    REFRESH_TOKEN_SECRET: z
+      .string()
+      .min(64, "REFRESH_TOKEN_SECRET must be at least 64 characters long"),
 })
 
 const result = envSchema.safeParse(process.env)
