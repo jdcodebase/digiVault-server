@@ -45,6 +45,8 @@ export const registerSchema = z
                 .regex(/^[6-9]\d{9}$/, "Invalid phone number"),
 
             dateOfBirth: z.coerce.date(),
+            
+            gender: z.enum(["male", "female", "other"]),
 
             password: z
                 .string()

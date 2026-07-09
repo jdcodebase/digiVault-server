@@ -15,7 +15,7 @@ export const sendEmailVerificationOtpService = async ({
   const existingUser = await User.findOne({ email });
 
   if (existingUser) {
-    throw new ApiError(409, "Email is already registered.");
+    throw new ApiError(409, "An account with this email already exists. If you recently completed registration, please sign in instead.");
   }
 
   // Generate and hash OTP
@@ -43,7 +43,7 @@ export const sendEmailVerificationOtpService = async ({
   );
 
   // Send OTP email
-  await sendVerificationEmail(fullName, email, otp);
+  await sendVerificationEmail(name, email, otp);
 
   // Return response
   return {
@@ -135,6 +135,7 @@ export const registerService = async ({
     registrationToken,
     phoneNumber,
     dateOfBirth,
+    gender,
     password,
 }) => {
 
@@ -167,13 +168,14 @@ export const registerService = async ({
     if (existingUser) {
         throw new ApiError(409, "User already exists.");
     }
-
+    
     const user = new User({
         name: data.name,
         email: data.email,
         phoneNumber,
         dateOfBirth,
-        password, // Let mongoose pre-save hook hash it
+        gender,
+        password,
     });
 
     const accessToken = generateAccessToken(user._id);
@@ -186,8 +188,14 @@ export const registerService = async ({
 
     await deleteRedis(redisKey);
 
+    const userResponse = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+    };
+
     return {
-        user,
+        user: userResponse,
         accessToken,
         refreshToken,
     };

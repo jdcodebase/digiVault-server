@@ -1,7 +1,8 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/apiResponse.js";
 import env from "../config/env.js"
-import { sendEmailVerificationOtpService, verifyEmailOtpService } from "../services/auth.service.js";
+import { registerService, sendEmailVerificationOtpService, verifyEmailOtpService } from "../services/auth.service.js";
+import { accessCookieOptions, refreshCookieOptions } from "../constants/cookieOptions.js";
 
 export const sendEmailVerificationOtp = asyncHandler(async (req, res) => {
   const { name, email } = req.body;
@@ -39,10 +40,10 @@ export const verifyEmailOtp = asyncHandler(async (req, res) => {
   );
 });
 
-export const registerController = asyncHandler(async (req, res) => {
+export const register = asyncHandler(async (req, res) => {
     const result = await registerService({
-        body: req.body,
         registrationToken: req.cookies.registrationToken,
+        ...req.body,
     });
 
     res

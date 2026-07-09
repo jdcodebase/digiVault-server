@@ -75,22 +75,18 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.pre("save", async function (next){
-    if(!this.isModified("password")) return next();
-
-    try {
-        const hashedPassword = await argon2.hash(this.password, {
-            type: argon2.argon2id,
-            memoryCost: 2 ** 16, // 64 MB
-            timeCost: 5, // Number of iterations
-            parallelism: 1, // Number of threads
-        });
-        this.password = hashedPassword;
-        next();
-    } catch (error) {
-        next(error);
+userSchema.pre("save", async function () {
+    if (!this.isModified("password")) {
+        return;
     }
-})
+
+    this.password = await argon2.hash(this.password, {
+        type: argon2.argon2id,
+        memoryCost: 2 ** 16,
+        timeCost: 5,
+        parallelism: 1,
+    });
+});
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
     return argon2.verify(this.password, candidatePassword);
