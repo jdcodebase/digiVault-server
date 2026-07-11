@@ -1,8 +1,8 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/apiResponse.js";
 import env from "../config/env.js"
-import { loginService, registerService, sendEmailVerificationOtpService, verifyEmailOtpService } from "../services/auth.service.js";
-import { accessCookieOptions, refreshCookieOptions, registrationCookieOptions } from "../constants/cookieOptions.js";
+import { loginService, logoutService, registerService, sendEmailVerificationOtpService, verifyEmailOtpService } from "../services/auth.service.js";
+import { accessCookieOptions, clearAccessCookieOptions, clearRefreshCookieOptions, clearRegistrationCookieOptions, refreshCookieOptions, registrationCookieOptions } from "../constants/cookieOptions.js";
 
 export const sendEmailVerificationOtp = asyncHandler(async (req, res) => {
   const { name, email } = req.body;
@@ -46,7 +46,7 @@ export const register = asyncHandler(async (req, res) => {
         .status(201)
         .cookie("accessToken", result.accessToken, accessCookieOptions)
         .cookie("refreshToken", result.refreshToken, refreshCookieOptions)
-        .clearCookie("registrationToken", registrationCookieOptions)
+        .clearCookie("registrationToken", clearRegistrationCookieOptions)
         .json(
             new ApiResponse(
                 201,
@@ -71,3 +71,18 @@ export const login = asyncHandler(async(req,res)=>{
             )
         );
 })
+
+export const logout = asyncHandler(async (req, res) => {
+  await logoutService(req.cookies.refreshToken);
+
+  res
+    .status(200)
+    .clearCookie("accessToken", clearAccessCookieOptions)
+    .clearCookie("refreshToken", clearRefreshCookieOptions)
+    .json(
+      new ApiResponse(
+        200,
+        "Logged out successfully."
+      )
+    );
+});

@@ -5,6 +5,7 @@ import {
     verifyEmailOtp,
     register,
     login,
+    logout,
 } from "../controllers/auth.controller.js";
 
 import validateMiddleware from "../middlewares/validate.middleware.js";
@@ -41,5 +42,7 @@ router.post(
     validateMiddleware(loginSchema),
     login
 );
+
+router.post("/logout", logout);
 
 export default router;

@@ -8,9 +8,11 @@ export const hashRefreshToken = (refreshToken) =>
         parallelism: 1,
     });
 
-export const verifyRefreshToken = async (
-    refreshToken,
-    hashedRefreshToken
+export const verifyRefreshTokenHash = (
+  refreshToken,
+  hashedRefreshToken
 ) => {
-    return await argon2.verify(hashedRefreshToken, refreshToken);
+  if (!hashedRefreshToken) return false;
+
+  return argon2.verify(hashedRefreshToken, refreshToken);
 };

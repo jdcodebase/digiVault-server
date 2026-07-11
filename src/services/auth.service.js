@@ -1,10 +1,10 @@
 import { ACCOUNT_LOCK_DURATION, EMAIL_VERIFICATION_PREFIX, EMAIL_VERIFICATION_TTL, MAX_LOGIN_ATTEMPTS, MAX_OTP_ATTEMPTS } from "../constants/security.js";
 import User from "../models/user.model.js";
 import ApiError from "../utils/apiError.js";
-import { hashRefreshToken } from "../utils/hash.js";
+import { hashRefreshToken, verifyRefreshTokenHash } from "../utils/refreshToken.js";
 import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.util.js";
 import { deleteRedis, getRedis, getRedisTTL, setRedis } from "../utils/redis.util.js";
-import { generateAccessToken, generateRefreshToken, generateRegistrationToken, verifyRegistrationToken } from "../utils/token.util.js";
+import { generateAccessToken, generateRefreshToken, generateRegistrationToken, verifyRefreshToken, verifyRegistrationToken } from "../utils/token.util.js";
 import { sendVerificationEmail } from "./email.service.js";
 
 export const sendEmailVerificationOtpService = async ({
@@ -287,4 +287,39 @@ export const loginService = async ({ email, password }) => {
     accessToken,
     refreshToken,
   };
+};
+
+export const logoutService = async (refreshToken) => {
+  // User may already have no refresh token cookie.
+  if (!refreshToken) {
+    return;
+  }
+
+  try {
+    const payload = verifyRefreshToken(refreshToken);
+
+    const user = await User.findById(payload.userId)
+      .select("+refreshToken");
+
+    if (!user || !user.refreshToken) {
+      return;
+    }
+
+    const isValid = await verifyRefreshTokenHash(
+      refreshToken,
+      user.refreshToken
+    );
+
+    if (!isValid) {
+      return;
+    }
+
+    user.refreshToken = undefined;
+    await user.save({ validateBeforeSave: false });
+
+  } catch {
+    // Ignore invalid/expired refresh tokens.
+    // The client is logging out anyway.
+    return;
+  }
 };
