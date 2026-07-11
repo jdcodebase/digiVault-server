@@ -4,6 +4,7 @@ import {
     sendEmailVerificationOtp,
     verifyEmailOtp,
     register,
+    login,
 } from "../controllers/auth.controller.js";
 
 import validateMiddleware from "../middlewares/validate.middleware.js";
@@ -12,6 +13,7 @@ import {
     sendEmailVerificationOtpSchema,
     verifyEmailOtpSchema,
     registerSchema,
+    loginSchema,
 } from "../validations/auth.validation.js";
 
 const router = Router();
@@ -32,6 +34,12 @@ router.post(
     "/register",
     validateMiddleware(registerSchema),
     register
+);
+
+router.post(
+    "/login",
+    validateMiddleware(loginSchema),
+    login
 );
 
 export default router;

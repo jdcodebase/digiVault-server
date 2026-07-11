@@ -24,10 +24,26 @@ export const generateAccessToken = (userId) => {
     );
 };
 
+export const verifyAccessToken = (token) => {
+    try {
+        return jwt.verify(token, env.ACCESS_TOKEN_SECRET);
+    } catch {
+        throw new ApiError(401, "Invalid access token.");
+    }
+};
+
 export const generateRefreshToken = (userId) => {
     return jwt.sign(
         { userId },
         env.REFRESH_TOKEN_SECRET,
         { expiresIn: "7d" }
     );
+};
+
+export const verifyRefreshToken = (token) => {
+    try {
+        return jwt.verify(token, env.REFRESH_TOKEN_SECRET);
+    } catch {
+        throw new ApiError(401, "Invalid access token.");
+    }
 };

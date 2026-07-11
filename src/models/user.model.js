@@ -80,6 +80,10 @@ userSchema.pre("save", async function () {
         return;
     }
 
+    if (this.isModified("password")) {
+      this.passwordChangedAt = new Date();
+    }
+
     this.password = await argon2.hash(this.password, {
         type: argon2.argon2id,
         memoryCost: 2 ** 16,

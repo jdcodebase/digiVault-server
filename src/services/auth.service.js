@@ -1,4 +1,4 @@
-import { EMAIL_VERIFICATION_PREFIX, EMAIL_VERIFICATION_TTL, MAX_OTP_ATTEMPTS } from "../constants/auth.constants.js";
+import { ACCOUNT_LOCK_DURATION, EMAIL_VERIFICATION_PREFIX, EMAIL_VERIFICATION_TTL, MAX_LOGIN_ATTEMPTS, MAX_OTP_ATTEMPTS } from "../constants/security.js";
 import User from "../models/user.model.js";
 import ApiError from "../utils/apiError.js";
 import { hashRefreshToken } from "../utils/hash.js";
@@ -15,15 +15,33 @@ export const sendEmailVerificationOtpService = async ({
   const existingUser = await User.findOne({ email });
 
   if (existingUser) {
-    throw new ApiError(409, "An account with this email already exists. If you recently completed registration, please sign in instead.");
+    throw new ApiError(
+      409,
+      "An account with this email already exists. If you recently completed registration, please sign in instead."
+    );
+  }
+
+  // Redis key
+  const redisKey = `${EMAIL_VERIFICATION_PREFIX}:${email}`;
+
+  // Check if an OTP already exists
+  const existingVerification = await getRedis(redisKey);
+
+  if (existingVerification) {
+    const ttl = await getRedisTTL(redisKey);
+
+    // OTP is less than 3 minutes old (10 min TTL - 3 min = 7 min remaining)
+    if (ttl >= 7 * 60) {
+      throw new ApiError(
+        429,
+        "A verification OTP has already been sent. Please wait before requesting a new one."
+      );
+    }
   }
 
   // Generate and hash OTP
   const otp = generateOtp();
   const hashedOtp = await hashOtp(otp);
-
-  // Redis key
-  const redisKey = `${EMAIL_VERIFICATION_PREFIX}:${email}`;
 
   // Store verification data in Redis
   const verificationData = {
@@ -45,7 +63,6 @@ export const sendEmailVerificationOtpService = async ({
   // Send OTP email
   await sendVerificationEmail(name, email, otp);
 
-  // Return response
   return {
     message: "Verification OTP sent successfully.",
     data: {
@@ -54,149 +71,220 @@ export const sendEmailVerificationOtpService = async ({
   };
 };
 
-export const verifyEmailOtpService = async ({
-    email,
-    otp,
-}) => {
-    const redisKey = `${EMAIL_VERIFICATION_PREFIX}:${email}`;
+export const verifyEmailOtpService = async ({ email, otp }) => {
+  const redisKey = `${EMAIL_VERIFICATION_PREFIX}:${email}`;
 
-    const verificationData = await getRedis(redisKey);
+  // Check registration session
+  const verificationData = await getRedis(redisKey);
 
-    if (!verificationData) {
-        throw new ApiError(
-            400,
-            "OTP has expired. Please request a new one."
-        );
-    }
-
-    const data = JSON.parse(verificationData);
-
-    if (data.isVerified) {
-        throw new ApiError(
-            400,
-            "Email is already verified."
-        );
-    }
-
-    if (data.attempts >= MAX_OTP_ATTEMPTS) {
-        throw new ApiError(
-            429,
-            "Maximum verification attempts exceeded. Request a new OTP."
-        );
-    }
-
-    const isOtpValid = await verifyOtp(
-        otp,
-        data.hashedOtp
+  if (!verificationData) {
+    throw new ApiError(
+      400,
+      "Registration session expired. Please request a new verification OTP."
     );
+  }
 
+  const data = JSON.parse(verificationData);
 
-    if (!isOtpValid) {
-        data.attempts += 1;
+  // Email already verified
+  if (data.isVerified) {
+    throw new ApiError(
+      400,
+      "This email has already been verified. Please request a new verification OTP to continue registration."
+    );
+  }
 
-        const remainingTTL = await getRedisTTL(redisKey);
+  // Maximum attempts reached
+  if (data.attempts >= MAX_OTP_ATTEMPTS) {
+    await deleteRedis(redisKey);
 
-        await setRedis(redisKey, JSON.stringify(data), remainingTTL);
+    throw new ApiError(
+      429,
+      "Maximum verification attempts exceeded. Please request a new verification OTP."
+    );
+  }
 
-        if (data.attempts >= MAX_OTP_ATTEMPTS) {
-            throw new ApiError(
-                429,
-                "Maximum verification attempts exceeded. Please request a new OTP."
-            );
-        }
+  // Verify OTP
+  const isOtpValid = await verifyOtp(otp, data.hashedOtp);
 
-        throw new ApiError(400, "Invalid OTP.");
+  if (!isOtpValid) {
+    data.attempts += 1;
+
+    // Delete session after final failed attempt
+    if (data.attempts >= MAX_OTP_ATTEMPTS) {
+      await deleteRedis(redisKey);
+
+      throw new ApiError(
+        429,
+        "Maximum verification attempts exceeded. Please request a new verification OTP."
+      );
     }
 
-    data.isVerified = true;
-    data.verifiedAt = new Date().toISOString();
+    const remainingTTL = await getRedisTTL(redisKey);
 
     await setRedis(
-        redisKey,
-        JSON.stringify(data),
-        EMAIL_VERIFICATION_TTL
+      redisKey,
+      JSON.stringify(data),
+      remainingTTL
     );
 
-    const registrationToken = generateRegistrationToken({
-        email: data.email,
-        type: "registration",
-    });
+    throw new ApiError(400, "Invalid OTP.");
+  }
 
-    return {
-        message: "Email verified successfully.",
-        registrationToken,
-        data: {
-            name: data.name,
-        },
-    };
+  // OTP verified successfully
+  data.isVerified = true;
+  data.verifiedAt = new Date().toISOString();
+  data.attempts = 0;
+
+  // Generate registration token
+  const registrationToken = generateRegistrationToken({
+    email: data.email,
+    type: "registration",
+  });
+
+  // Keep Redis session alive for the same duration as the registration token
+  await setRedis(
+    redisKey,
+    JSON.stringify(data),
+    EMAIL_VERIFICATION_TTL
+  );
+
+  return {
+    message: "Email verified successfully.",
+    registrationToken,
+    data: {
+      name: data.name,
+      email: data.email,
+    },
+  };
 };
 
 export const registerService = async ({
-    registrationToken,
+  registrationToken,
+  phoneNumber,
+  dateOfBirth,
+  gender,
+  password,
+}) => {
+  if (!registrationToken) {
+    throw new ApiError(401, "Registration session expired.");
+  }
+
+  const { email } = verifyRegistrationToken(registrationToken);
+
+  const redisKey = `${EMAIL_VERIFICATION_PREFIX}:${email}`;
+
+  const verificationData = await getRedis(redisKey);
+
+  if (!verificationData) {
+    throw new ApiError(404, "Verification session not found.");
+  }
+
+  const data = JSON.parse(verificationData);
+
+  if (!data.isVerified) {
+    throw new ApiError(403, "Email is not verified.");
+  }
+
+  const existingUser = await User.findOne({
+    $or: [
+      { email },
+      { phoneNumber },
+    ],
+  });
+
+  if (existingUser) {
+    throw new ApiError(
+      409,
+      existingUser.email === email
+        ? "User already exists."
+        : "Phone number is already registered."
+    );
+  }
+
+  const user = new User({
+    name: data.name,
+    email,
     phoneNumber,
     dateOfBirth,
     gender,
     password,
-}) => {
+  });
 
-    if (!registrationToken) {
-        throw new ApiError(401, "Registration session expired.");
+  await user.save();
+
+  const accessToken = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
+
+  user.refreshToken = await hashRefreshToken(refreshToken);
+  await user.save();
+
+  await deleteRedis(redisKey);
+
+  return {
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+    },
+    accessToken,
+    refreshToken,
+  };
+};
+
+export const loginService = async ({ email, password }) => {
+  const user = await User.findOne({ email }).select("+password");
+
+  if (!user) {
+    throw new ApiError(401, "Invalid email or password.");
+  }
+
+  // Check account lock
+  if (user.lockUntil && user.lockUntil > Date.now()) {
+    const retryAfter = Math.ceil(
+      (user.lockUntil.getTime() - Date.now()) / 1000
+    );
+
+    throw new ApiError(
+      423,
+      "Account temporarily locked. Please try again later.",
+      { retryAfter }
+    );
+  }
+
+  const isPasswordValid = await user.comparePassword(password);
+
+  if (!isPasswordValid) {
+    user.loginAttempts += 1;
+
+    if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+      user.lockUntil = new Date(Date.now() + ACCOUNT_LOCK_DURATION);
     }
 
-    const payload = verifyRegistrationToken(registrationToken);
+    await user.save({ validateBeforeSave: false });
 
-    const email = payload.email;
+    throw new ApiError(401, "Invalid email or password.");
+  }
 
-    const redisKey = `${EMAIL_VERIFICATION_PREFIX}:${email}`;
+  // Successful login
+  user.loginAttempts = 0;
+  user.lockUntil = undefined;
+  user.lastLogin = new Date();
 
-    const verificationData = await getRedis(redisKey);
+  const accessToken = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
 
-    if (!verificationData) {
-        throw new ApiError(404, "Verification session not found.");
-    }
+  user.refreshToken = await hashRefreshToken(refreshToken);
 
-    const data = JSON.parse(verificationData);
+  await user.save({ validateBeforeSave: false });
 
-    if (!data.isVerified) {
-        throw new ApiError(403, "Email is not verified.");
-    }
-
-    const existingUser = await User.findOne({
-        email: data.email,
-    });
-
-    if (existingUser) {
-        throw new ApiError(409, "User already exists.");
-    }
-    
-    const user = new User({
-        name: data.name,
-        email: data.email,
-        phoneNumber,
-        dateOfBirth,
-        gender,
-        password,
-    });
-
-    const accessToken = generateAccessToken(user._id);
-
-    const refreshToken = generateRefreshToken(user._id);
-
-    user.refreshToken = await hashRefreshToken(refreshToken);
-
-    await user.save();
-
-    await deleteRedis(redisKey);
-
-    const userResponse = {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-    };
-
-    return {
-        user: userResponse,
-        accessToken,
-        refreshToken,
-    };
+  return {
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+    },
+    accessToken,
+    refreshToken,
+  };
 };

@@ -1,14 +1,25 @@
-import env from '../config/env.js';
+import env from "../config/env.js";
 
 class ApiError extends Error {
-    constructor(statusCode, message = 'An unexpected error occurred', errors = [], stack = null) {
+    constructor(
+        statusCode,
+        message = "An unexpected error occurred",
+        errors = [],
+        stack = null
+    ) {
         super(message);
 
         this.name = this.constructor.name;
-        this.statusCode = statusCode;
+        this.statusCode =
+            Number.isInteger(statusCode) &&
+            statusCode >= 100 &&
+            statusCode <= 599
+                ? statusCode
+                : 500;
+
         this.success = false;
         this.message = message;
-        this.errors = errors;
+        this.errors = Array.isArray(errors) ? errors : [];
         this.timestamp = new Date().toISOString();
         this.isOperational = true;
 
@@ -17,9 +28,11 @@ class ApiError extends Error {
         } else {
             Error.captureStackTrace(this, this.constructor);
         }
+
+        Object.freeze(this);
     }
 
-    toJSON(){
+    toJSON() {
         return {
             name: this.name,
             statusCode: this.statusCode,
@@ -27,7 +40,7 @@ class ApiError extends Error {
             message: this.message,
             errors: this.errors,
             timestamp: this.timestamp,
-            stack: env.NODE_ENV === 'development' ? this.stack : undefined
+            stack: env.NODE_ENV === "development" ? this.stack : undefined,
         };
     }
 }

@@ -14,12 +14,16 @@ let isShuttingDown = false;
 
 const startServer = async () => {
   try {
+
+    logger.info("Connecting to MongoDB...");
     await connectDB();
 
+    logger.info("Connecting to Redis...");
     if (redisClient.status !== "ready") {
       await redisClient.connect();
     }
 
+    logger.info("Verifying email transporter...");
     await verifyTransporter();
 
     httpServer = app.listen(PORT, () => {

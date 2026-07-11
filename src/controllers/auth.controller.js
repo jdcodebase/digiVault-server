@@ -1,8 +1,8 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/apiResponse.js";
 import env from "../config/env.js"
-import { registerService, sendEmailVerificationOtpService, verifyEmailOtpService } from "../services/auth.service.js";
-import { accessCookieOptions, refreshCookieOptions } from "../constants/cookieOptions.js";
+import { loginService, registerService, sendEmailVerificationOtpService, verifyEmailOtpService } from "../services/auth.service.js";
+import { accessCookieOptions, refreshCookieOptions, registrationCookieOptions } from "../constants/cookieOptions.js";
 
 export const sendEmailVerificationOtp = asyncHandler(async (req, res) => {
   const { name, email } = req.body;
@@ -24,14 +24,10 @@ export const sendEmailVerificationOtp = asyncHandler(async (req, res) => {
 export const verifyEmailOtp = asyncHandler(async (req, res) => {
   const result = await verifyEmailOtpService(req.body);
 
-  res.cookie("registrationToken", result.registrationToken, {
-    httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 10 * 60 * 1000, 
-  });
-
-  return res.status(200).json(
+  res
+    .status(200)
+    .cookie("registrationToken", result.registrationToken, registrationCookieOptions)
+    .json(
     new ApiResponse(
       200,
       result.message,
@@ -50,7 +46,7 @@ export const register = asyncHandler(async (req, res) => {
         .status(201)
         .cookie("accessToken", result.accessToken, accessCookieOptions)
         .cookie("refreshToken", result.refreshToken, refreshCookieOptions)
-        .clearCookie("registrationToken")
+        .clearCookie("registrationToken", registrationCookieOptions)
         .json(
             new ApiResponse(
                 201,
@@ -59,3 +55,19 @@ export const register = asyncHandler(async (req, res) => {
             )
         );
 });
+
+export const login = asyncHandler(async(req,res)=>{
+  const result = await loginService(req.body)
+
+  res
+      .status(200)
+      .cookie("accessToken", result.accessToken, accessCookieOptions)
+      .cookie("refreshToken", result.refreshToken, refreshCookieOptions)
+      .json(
+            new ApiResponse(
+                200,
+                "Logged in successfully.",
+                result.user
+            )
+        );
+})

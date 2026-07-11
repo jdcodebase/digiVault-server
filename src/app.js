@@ -1,4 +1,5 @@
 import express from 'express';
+import hpp from 'hpp'
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
@@ -13,7 +14,11 @@ import notFoundMiddleware from './middlewares/notFound.middleware.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 import routes from "./routes/index.js";
 
-const app = express()
+const app = express();
+
+app.set("trust proxy", 1);
+
+app.use(hpp())
 
 app.use(helmet({
     crossOriginResourcePolicy: false
@@ -53,8 +58,6 @@ app.get("/", (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
-
-app.set("trust proxy", 1);
 
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
