@@ -323,3 +323,48 @@ export const logoutService = async (refreshToken) => {
     return;
   }
 };
+
+export const refreshAccessTokenService = async (refreshToken) => {
+  if (!refreshToken) {
+    throw new ApiError(401, "Unauthorized.");
+  }
+
+  // Verify JWT signature & expiry
+  const payload = verifyRefreshToken(refreshToken);
+
+  // Find user
+  const user = await User.findById(payload.userId)
+    .select("+refreshToken");
+
+  if (!user) {
+    throw new ApiError(401, "Invalid refresh token.");
+  }
+
+  // Ensure user hasn't logged out
+  const isRefreshTokenValid = await verifyRefreshTokenHash(
+    refreshToken,
+    user.refreshToken
+  );
+
+  if (!isRefreshTokenValid) {
+    throw new ApiError(401, "Invalid refresh token.");
+  }
+
+  // Refresh Token Rotation
+  const newAccessToken = generateAccessToken(user._id);
+
+  const newRefreshToken = generateRefreshToken(user._id);
+
+  user.refreshToken = await hashRefreshToken(
+    newRefreshToken
+  );
+
+  await user.save({ validateBeforeSave: false });
+
+  return {
+    message: "Access token refreshed successfully.",
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
+    data: null,
+  };
+};

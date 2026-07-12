@@ -44,6 +44,6 @@ export const verifyRefreshToken = (token) => {
     try {
         return jwt.verify(token, env.REFRESH_TOKEN_SECRET);
     } catch {
-        throw new ApiError(401, "Invalid access token.");
+        throw new ApiError(401, "Invalid refresh token.");
     }
 };

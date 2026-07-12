@@ -6,6 +6,7 @@ import {
     register,
     login,
     logout,
+    refreshAccessToken,
 } from "../controllers/auth.controller.js";
 
 import validateMiddleware from "../middlewares/validate.middleware.js";
@@ -44,5 +45,7 @@ router.post(
 );
 
 router.post("/logout", logout);
+
+router.post("/refresh-token", refreshAccessToken);
 
 export default router;

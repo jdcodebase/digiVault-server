@@ -1,7 +1,7 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/apiResponse.js";
 import env from "../config/env.js"
-import { loginService, logoutService, registerService, sendEmailVerificationOtpService, verifyEmailOtpService } from "../services/auth.service.js";
+import { loginService, logoutService, refreshAccessTokenService, registerService, sendEmailVerificationOtpService, verifyEmailOtpService } from "../services/auth.service.js";
 import { accessCookieOptions, clearAccessCookieOptions, clearRefreshCookieOptions, clearRegistrationCookieOptions, refreshCookieOptions, registrationCookieOptions } from "../constants/cookieOptions.js";
 
 export const sendEmailVerificationOtp = asyncHandler(async (req, res) => {
@@ -83,6 +83,24 @@ export const logout = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         "Logged out successfully."
+      )
+    );
+});
+
+export const refreshAccessToken = asyncHandler(async (req, res) => {
+  const result = await refreshAccessTokenService(
+    req.cookies.refreshToken
+  );
+
+  res
+    .status(200)
+    .cookie("accessToken", result.accessToken, accessCookieOptions)
+    .cookie("refreshToken", result.refreshToken, refreshCookieOptions)
+    .json(
+      new ApiResponse(
+        200,
+        result.message,
+        result.data
       )
     );
 });
